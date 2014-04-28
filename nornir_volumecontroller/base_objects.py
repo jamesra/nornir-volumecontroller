@@ -1,5 +1,5 @@
 import nornir_volumecontroller
-import nornir_volumexml
+import nornir_volumemodel
 import nornir_imageregistration
 
 class VolumeInterface(object):
@@ -90,6 +90,29 @@ class Volume(VolumeInterface):
         # Set restricts itself to unique values
         return set(channelList)
 
+
+    def _KnownSectionNumbersInBoundingBox(self, boundingbox):
+        for sectionNumber in nornir_volumecontroller.spatial.SectionsInBoundingBox(boundingbox):
+            if sectionNumber in self.transform_path_map:
+                yield sectionNumber
+
+        return
+
+
+    def GetHighestResolution(self, region=None, channel_names=None):
+        '''Return the highest resolution of data within the bounding box'''
+
+        ScaleObj = nornir_volumemodel.model.Scale()
+        boundingbox = nornir_imageregistration.BoundingBox.CreateFromBounds(region)
+        for sectionNumber in self._KnownSectionNumbersInBoundingBox(boundingbox):
+            channelmap = self.transform_path_map[sectionNumber]
+            vol_registered_channel = GetChannels(channelmap, channel_names)
+            for channel in vol_registered_channel:
+                ScaleObj = Scale.MinAxisScales(ScaleObj, channel.Scale)
+
+        return Scale(ScaleObj)
+
+
     def GetData(self, region, resolution, channel_names):
         '''Return data for the specified region
            :param ndarray region: (minZ, minY, minX, maxZ, maxY, maxX)
@@ -98,54 +121,154 @@ class Volume(VolumeInterface):
            :returns: list of ndarray images
         '''
         boundingbox = nornir_imageregistration.BoundingBox.CreateFromBounds(region)
-        StartSection = region[nornir_imageregistration.iBox.MinZ]
-        EndSection = region[nornir_imageregistration.iBox.MaxZ]
-
         rect = boundingbox.RectangleXY
-        images = [] 
-        for sectionNumber in range(StartSection, EndSection):
-            if sectionNumber in self.transform_path_map:
-                channelmap = self.transform_path_map[sectionNumber]
-                
-                mosaic_files = GetChannels(channelmap, channel_names)
-                
-                for mosaic_file in mosaic_files:
-                    mosaic = nornir_imageregistration.Mosaic.LoadFromMosaicFile(mosaic_file)
-                    mosaic.AssembleTiles(tilesPath, rect, usecluster=True)
-                    
+        images = {}
+        for sectionNumber in self._KnownSectionNumbersInBoundingBox(boundingbox):
+            channelmap = self.transform_path_map[sectionNumber]
+            vol_registered_channels = GetChannels(channelmap, channel_names)
 
-        pass
+            for channel in vol_registered_channels:
+                mosaic = nornir_imageregistration.Mosaic.LoadFromMosaicFile(channel.Transform.FullPath)
+                downsample = resolution / channel.Scale.X.UnitsPerPixel
+                tilesPath = channel.GetTilesPath(filtername='Leveled', level=int(downsample))
+                [image, mask] = mosaic.AssembleTiles(tilesPath, FixedRegion=rect.ToArray(), usecluster=True)
+                images[sectionNumber] = image
+
+        return images
 
     ##########Non interface methods##############
-    
-    def MatchingSectionChannels(self, section):
-        for section, channelmap in self.transform_path_map.items():
-            
+#
+#     def MatchingSectionChannels(self, section):
+#         for section, channelmap in self.transform_path_map.items():
+#
+
 
     def Calculate2DBoundingBox(self):
         transforms = []
-        for t in self._TransformPaths(channelname=None):
-            transform = nornir_imageregistration.Mosaic.LoadFromMosaicFile(t)
+        for vol_registered_channel in self._MatchingChannels(channelname=None):
+            transform_fullpath = vol_registered_channel.Transform.FullPath
+            transform = nornir_imageregistration.Mosaic.LoadFromMosaicFile(transform_fullpath)
             transforms.append(transform)
 
         return nornir_imageregistration.transforms.utils.FixedBoundingBox(transforms)
 
-    def _TransformPaths(self, channelname=None):
+    def _MatchingChannels(self, channelname=None):
         '''Return all transforms matching the channelname, or all transforms if channelname is None'''
 
         transform_paths = []
         for section, channelmap in self.transform_path_map.items():
-            channel = GetChannels(channelmap, channelname)
-            if channel:
+            for channel in GetChannels(channelmap, channelname):
                 yield channel
 
         return
 
-def GetChannels(channelmap, channelname):
-    if channelname:
-        if not channelname in channelmap:
-            return None
-        return channelmap[channelname]
+
+class VolumeRegisteredChannel(object):
+
+    @property
+    def Name(self):
+        return self._channelModel.Name
+
+    @property
+    def Transform(self):
+        return self._transform
+
+    @property
+    def Scale(self):
+        return self._channelModel.Scale
+
+    def GetTilesPath(self, filtername, level):
+        filterObj = self._channelModel.Filters[filtername]
+        level = filterObj.TilePyramid.Levels.get(level, None)
+        if level is None:
+            raise Exception("Missing level %g" % level)
+
+        return level.FullPath
+
+
+    def __init__(self, channelModel=None):
+
+        self._channelModel = channelModel
+        self._transform = VolumeRegisteredChannel._FindTransform(channelModel, transformName=None)
+
+
+        if self._transform is None:
+            raise Exception('No channel to volume transform found')
+
+    @classmethod
+    def _FindTransform(cls, channelModel, transformName=None):
+        if transformName is None:
+            transformName = 'ChannelToVolume'
+
+        return channelModel.Transforms.get(transformName, None)
+
+
+class Scale(object):
+    @property
+    def X(self):
+        return self._scale_model.X.UnitsPerPixel
+
+    @property
+    def Y(self):
+        return self._scale_model.Y.UnitsPerPixel
+
+    @property
+    def Z(self):
+        return self._scale_model.Z.UnitsPerPixel
+
+    def __init__(self, scale_model=None):
+        if scale_model is None:
+            self._scale_model = Scale()
+        else:
+            self._scale_model = scale_model
+
+    def __str__(self, *args, **kwargs):
+        out_str = ""
+        for axis_name in self._scale_model.AxisNames:
+            axis_data = self._scale_model.GetAxis(axis_name)
+            out_str += " %s : %g %s " % (axis_name, axis_data.UnitsPerPixel, axis_data.UnitsOfMeasure)
+
+        return out_str
+
+
+    @classmethod
+    def MinAxisScales(self, scale_model_A, scale_model_B):
+        '''Given two scale models, return a scale object describing the highest resolution available for each axis'''
+
+        axis_list = list(scale_model_A.AxisNames)
+        axis_list.extend(scale_model_B.AxisNames)
+
+        output_scale_model = nornir_volumemodel.Scale()
+
+        # use the unique axis names
+        axis_name_set = set(axis_list)
+
+        for axis_name in axis_name_set:
+            A = scale_model_A.GetAxis(axis_name)
+            B = scale_model_B.GetAxis(axis_name)
+
+            if A is None and B is None:
+                raise Exception("Could not find expected scale: %s" % axis_name)
+            elif A and B:
+                MinUnitsPerPixel = min(A.UnitsPerPixel, B.UnitsPerPixel)
+
+                if A.UnitsOfMeasure != B.UnitsOfMeasure:
+                    raise Exception("No support for different units of measure in scales yet")
+
+                output_scale_model.SetAxis(axis_name, MinUnitsPerPixel, A.UnitsOfMeasure)
+            elif A:
+                output_scale_model.SetAxis(axis_name, A.UnitsPerPixel, A.UnitsOfMeasure)
+            elif B:
+                output_scale_model.SetAxis(axis_name, B.UnitsPerPixel, B.UnitsOfMeasure)
+
+        return output_scale_model
+
+
+def GetChannels(channelmap, channelnames):
+    if channelnames:
+        for channel_name in channelnames:
+            if channel_name in channelmap:
+                yield channelmap[channel_name]
     else:
         for channel in channelmap.values():
-            return channel
+            yield channel
