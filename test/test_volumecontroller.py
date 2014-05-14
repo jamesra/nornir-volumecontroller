@@ -13,12 +13,14 @@ import test.test_base
 
 import nornir_volumecontroller.spatial
 
+from nornir_imageregistration import iBox
+
 
 class Test(test.test_base.PlatformTest):
 
     @property
     def VolumePath(self):
-        return "IDocAlignTest"
+        return "IDocBuildTest"
 
     @property
     def Platform(self):
@@ -54,7 +56,6 @@ class Test(test.test_base.PlatformTest):
         max_res_scale = self.volumeController.GetHighestResolution(bounds)
         print(str(max_res_scale))
 
-
     def test_ImageServing(self):
 
         bounds = self.volumeController.Bounds
@@ -63,6 +64,24 @@ class Test(test.test_base.PlatformTest):
         max_res_scale = self.volumeController.GetHighestResolution(bounds)
 
         images = self.volumeController.GetData(bounds, max_res_scale.X * 16.0, self.volumeController.Channels)
+        self.assertIsNotNone(images)
+        nornir_imageregistration.core.ShowGrayscale(images.values())
+
+    def test_SmallHighResRegionImageServing(self):
+        bounds = self.volumeController.Bounds
+        self.assertIsNotNone(bounds)
+
+        max_res_scale = self.volumeController.GetHighestResolution(bounds)
+
+        smaller_bounds = bounds
+        smaller_bounds[iBox.MinX] = bounds[iBox.MaxX] / 2.0
+        smaller_bounds[iBox.MinY] = bounds[iBox.MaxY] / 2.0
+        smaller_bounds[iBox.MinZ] = bounds[iBox.MinZ]
+        smaller_bounds[iBox.MaxX] = smaller_bounds[iBox.MinX] + 1024
+        smaller_bounds[iBox.MaxY] = smaller_bounds[iBox.MinY] + 1024
+        smaller_bounds[iBox.MaxZ] = bounds[iBox.MinZ] + 1
+
+        images = self.volumeController.GetData(smaller_bounds, max_res_scale.X * 16.0, self.volumeController.Channels)
         self.assertIsNotNone(images)
         nornir_imageregistration.core.ShowGrayscale(images.values())
 

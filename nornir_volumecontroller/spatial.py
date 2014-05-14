@@ -29,5 +29,5 @@ def SectionsInBoundingBox(boundingbox):
     StartSection = boundingbox.BoundingBox[nornir_imageregistration.iBox.MinZ]
     EndSection = boundingbox.BoundingBox[nornir_imageregistration.iBox.MaxZ]
 
-    for sectionNumber in range(StartSection, EndSection):
+    for sectionNumber in range(int(StartSection), int(EndSection)):
         yield sectionNumber

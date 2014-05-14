@@ -2,6 +2,9 @@ import nornir_volumecontroller
 import nornir_volumemodel
 import nornir_imageregistration
 
+from . import spatial
+
+
 class VolumeInterface(object):
 
     @property
@@ -38,11 +41,11 @@ class Volume(VolumeInterface):
             maxZ = max(self.transform_path_map.keys())
 
             self._bounds = [minZ,
-                            boundsXY[nornir_imageregistration.spatial.iRect.MinY],
-                            boundsXY[nornir_imageregistration.spatial.iRect.MinX],
+                            boundsXY[nornir_imageregistration.iRect.MinY],
+                            boundsXY[nornir_imageregistration.iRect.MinX],
                             maxZ,
-                            boundsXY[nornir_imageregistration.spatial.iRect.MaxY],
-                            boundsXY[nornir_imageregistration.spatial.iRect.MaxX]]
+                            boundsXY[nornir_imageregistration.iRect.MaxY],
+                            boundsXY[nornir_imageregistration.iRect.MaxX]]
         return self._bounds
 
     @property
@@ -103,6 +106,9 @@ class Volume(VolumeInterface):
         '''Return the highest resolution of data within the bounding box'''
 
         ScaleObj = nornir_volumemodel.model.Scale()
+        if region is None:
+            region = self.Bounds
+
         boundingbox = nornir_imageregistration.BoundingBox.CreateFromBounds(region)
         for sectionNumber in self._KnownSectionNumbersInBoundingBox(boundingbox):
             channelmap = self.transform_path_map[sectionNumber]
@@ -123,6 +129,9 @@ class Volume(VolumeInterface):
         boundingbox = nornir_imageregistration.BoundingBox.CreateFromBounds(region)
         rect = boundingbox.RectangleXY
         images = {}
+        if channel_names is None:
+            channel_names = GetChannels(channelmap, channel_names)
+
         for sectionNumber in self._KnownSectionNumbersInBoundingBox(boundingbox):
             channelmap = self.transform_path_map[sectionNumber]
             vol_registered_channels = GetChannels(channelmap, channel_names)
@@ -132,6 +141,7 @@ class Volume(VolumeInterface):
                 downsample = resolution / channel.Scale.X.UnitsPerPixel
                 tilesPath = channel.GetTilesPath(filtername='Leveled', level=int(downsample))
                 [image, mask] = mosaic.AssembleTiles(tilesPath, FixedRegion=rect.ToArray(), usecluster=True)
+                # TODO: Scale the image to the requested size
                 images[sectionNumber] = image
 
         return images
@@ -181,7 +191,7 @@ class VolumeRegisteredChannel(object):
         filterObj = self._channelModel.Filters[filtername]
         level = filterObj.TilePyramid.Levels.get(level, None)
         if level is None:
-            raise Exception("Missing level %g" % level)
+            raise Exception("Missing level " + str(level))
 
         return level.FullPath
 
