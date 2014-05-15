@@ -189,11 +189,11 @@ class VolumeRegisteredChannel(object):
 
     def GetTilesPath(self, filtername, level):
         filterObj = self._channelModel.Filters[filtername]
-        level = filterObj.TilePyramid.Levels.get(level, None)
-        if level is None:
-            raise Exception("Missing level " + str(level))
+        levelObj = filterObj.TilePyramid.GetMoreOrEquallyDetailedLevel(level)
+        if levelObj is None:
+            raise ValueError("Missing level " + str(level))
 
-        return level.FullPath
+        return levelObj.FullPath
 
 
     def __init__(self, channelModel=None):
