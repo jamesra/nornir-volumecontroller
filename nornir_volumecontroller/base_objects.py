@@ -1,6 +1,7 @@
 import nornir_volumecontroller
 import nornir_volumemodel
 import nornir_imageregistration
+import scipy.misc
 
 from . import spatial
 
@@ -140,9 +141,10 @@ class Volume(VolumeInterface):
                 mosaic = nornir_imageregistration.Mosaic.LoadFromMosaicFile(channel.Transform.FullPath)
                 downsample = resolution / channel.Scale.X.UnitsPerPixel
                 tilesPath = channel.GetTilesPath(filtername='Leveled', level=int(downsample))
-                [image, mask] = mosaic.AssembleTiles(tilesPath, FixedRegion=rect.ToArray(), usecluster=True)
-                # TODO: Scale the image to the requested size
-                images[sectionNumber] = image
+                [image, mask] = mosaic.AssembleTiles(tilesPath, FixedRegion=rect.ToArray(), usecluster=False)
+                
+                #TODO: Scale the image to the requested size
+                images[sectionNumber] = nornir_imageregistration.ChangeImageDownsample(image, int(downsample), downsample) 
 
         return images
 
