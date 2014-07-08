@@ -1,6 +1,7 @@
 import nornir_imageregistration
 import nornir_volumecontroller
 
+
 def BuildSectionChannelMap(section):
 
     SectionToChannelTransforms = {}
@@ -10,6 +11,7 @@ def BuildSectionChannelMap(section):
             SectionToChannelTransforms[channel.Name] = nornir_volumecontroller.base_objects.VolumeRegisteredChannel(channel)
 
     return SectionToChannelTransforms
+
 
 def BuildVolumeTransformMap(volume):
     '''Returns {SectionNumber : {ChannelName : transform}}'''
@@ -29,5 +31,5 @@ def SectionsInBoundingBox(boundingbox):
     StartSection = boundingbox.BoundingBox[nornir_imageregistration.iBox.MinZ]
     EndSection = boundingbox.BoundingBox[nornir_imageregistration.iBox.MaxZ]
 
-    for sectionNumber in range(int(StartSection), int(EndSection)+1):
+    for sectionNumber in range(int(StartSection), int(EndSection) + 1):
         yield sectionNumber
