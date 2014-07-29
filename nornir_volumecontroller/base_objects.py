@@ -94,14 +94,12 @@ class Volume(VolumeInterface):
         # Set restricts itself to unique values
         return set(channelList)
 
-
     def _KnownSectionNumbersInBoundingBox(self, boundingbox):
         for sectionNumber in nornir_volumecontroller.spatial.SectionsInBoundingBox(boundingbox):
             if sectionNumber in self.transform_path_map:
                 yield sectionNumber
 
         return
-
 
     def GetHighestResolution(self, region=None, channel_names=None):
         '''Return the highest resolution of data within the bounding box'''
@@ -118,7 +116,6 @@ class Volume(VolumeInterface):
                 ScaleObj = Scale.MinAxisScales(ScaleObj, channel.Scale)
 
         return Scale(ScaleObj)
-
 
     def GetData(self, region, resolution, channel_names):
         '''Return data for the specified region
@@ -142,9 +139,9 @@ class Volume(VolumeInterface):
                 downsample = resolution / channel.Scale.X.UnitsPerPixel
                 tilesPath = channel.GetTilesPath(filtername='Leveled', level=int(downsample))
                 [image, mask] = mosaic.AssembleTiles(tilesPath, FixedRegion=rect.ToArray(), usecluster=False)
-                
-                #TODO: Scale the image to the requested size
-                images[sectionNumber] = nornir_imageregistration.ChangeImageDownsample(image, int(downsample), downsample) 
+
+                # TODO: Scale the image to the requested size
+                images[sectionNumber] = nornir_imageregistration.ChangeImageDownsample(image, int(downsample), downsample)
 
         return images
 
@@ -153,7 +150,6 @@ class Volume(VolumeInterface):
 #     def MatchingSectionChannels(self, section):
 #         for section, channelmap in self.transform_path_map.items():
 #
-
 
     def Calculate2DBoundingBox(self):
         transforms = []
@@ -197,12 +193,10 @@ class VolumeRegisteredChannel(object):
 
         return levelObj.FullPath
 
-
     def __init__(self, channelModel=None):
 
         self._channelModel = channelModel
         self._transform = VolumeRegisteredChannel._FindTransform(channelModel, transformName=None)
-
 
         if self._transform is None:
             raise Exception('No channel to volume transform found')
@@ -241,7 +235,6 @@ class Scale(object):
             out_str += " %s : %g %s " % (axis_name, axis_data.UnitsPerPixel, axis_data.UnitsOfMeasure)
 
         return out_str
-
 
     @classmethod
     def MinAxisScales(self, scale_model_A, scale_model_B):
