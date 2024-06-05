@@ -135,7 +135,7 @@ class Volume(VolumeInterface):
             vol_registered_channels = GetChannels(channelmap, channel_names)
 
             for channel in vol_registered_channels:
-                mosaic = nornir_imageregistration.Mosaic.LoadFromMosaicFile(channel.Transform.FullPath)
+                mosaic = nornir_imageregistration.Mosaic.LoadFromMosaicFile(channel.transform.FullPath)
                 downsample = resolution / channel.Scale.X.UnitsPerPixel
                 tilesPath = channel.GetTilesPath(filtername='Leveled', level=int(downsample))
                 [image, mask] = mosaic.AssembleTiles(tilesPath, FixedRegion=rect.ToArray(), usecluster=False)
@@ -154,7 +154,7 @@ class Volume(VolumeInterface):
     def Calculate2DBoundingBox(self):
         transforms = []
         for vol_registered_channel in self._MatchingChannels(channelname=None):
-            transform_fullpath = vol_registered_channel.Transform.FullPath
+            transform_fullpath = vol_registered_channel.transform.FullPath
             transform = nornir_imageregistration.Mosaic.LoadFromMosaicFile(transform_fullpath)
             transforms.append(transform)
 
