@@ -7,6 +7,11 @@ from . import spatial
 
 
 class VolumeInterface(object):
+    """Abstract interface for any volume controller.
+
+    Concrete subclasses (e.g. :class:`Volume`) must implement ``Bounds``,
+    ``Channels``, and :meth:`GetData`.
+    """
 
     @property
     def Bounds(self):
@@ -30,7 +35,11 @@ class VolumeInterface(object):
 
 
 class Volume(VolumeInterface):
-    '''Interface for a volume'''
+    """Concrete volume controller wrapping a :class:`~nornir_volumemodel.model.volume.Volume` model.
+
+    Lazily builds per-section transform maps and channel lists on first access so
+    loading a large volume does not incur upfront I/O costs.
+    """
 
     @property
     def Bounds(self):
@@ -172,6 +181,11 @@ class Volume(VolumeInterface):
 
 
 class VolumeRegisteredChannel(object):
+    """Wraps a single imaging channel together with its channel-to-volume registration transform.
+
+    Provides convenient access to the channel's ``Name``, ``Scale``, and tile-pyramid
+    file paths at a given downsample level.
+    """
 
     @property
     def Name(self):
@@ -210,6 +224,12 @@ class VolumeRegisteredChannel(object):
 
 
 class Scale(object):
+    """Physical scale of a volume channel on each spatial axis (units per pixel).
+
+    Wraps the volumemodel ``Scale`` object so callers can read ``X``, ``Y``, and ``Z``
+    units-per-pixel as plain floats rather than navigating the model hierarchy.
+    """
+
     @property
     def X(self):
         return self._scale_model.X.UnitsPerPixel
