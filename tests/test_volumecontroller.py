@@ -3,20 +3,31 @@ Created on Apr 15, 2014
 
 @author: u0490822
 '''
+import importlib.util
 import os
 import unittest
+from pathlib import Path
 
 import nornir_imageregistration
 import nornir_volumecontroller
 import nornir_volumemodel
-import test.test_base
 
 import nornir_volumecontroller.spatial
 
 from nornir_imageregistration import iBox
 
+# Monorepo umbrella: ``import tests.*`` for imageregistration helpers; avoid top-level ``test`` (stdlib).
+_spec = importlib.util.spec_from_file_location(
+    "nornir_volumecontroller_test_base",
+    Path(__file__).resolve().parent / "test_base.py",
+)
+assert _spec is not None and _spec.loader is not None
+_test_base = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_test_base)
+PlatformTest = _test_base.PlatformTest
 
-class Test(test.test_base.PlatformTest):
+
+class Test(PlatformTest):
 
     @property
     def VolumePath(self):
@@ -30,7 +41,7 @@ class Test(test.test_base.PlatformTest):
         self.assertEqual(volumeController.Channels, ExpectedChannels, "Channel list does not match")
 
     def setUp(self):
-        test.test_base.PlatformTest.setUp(self)
+        PlatformTest.setUp(self)
 
         VolumeXML = os.path.join(self.ImportedDataPath, 'VolumeData.xml')
 
